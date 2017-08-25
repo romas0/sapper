@@ -11,6 +11,7 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.text.*;
 import java.util.Date;
+import java.util.TimerTask;
 
 /**
  * Класс игры "Сапер" с графическим интерфейсом
@@ -18,9 +19,25 @@ import java.util.Date;
 public class GameGui extends JFrame {
 
     /**
+     * Константы статусов игры
+     */
+    public static final int  STATUS_ON  = 1; // Игра идет
+    public static final int  STATUS_OFF = 2; // Нет игры
+
+    /**
+     * Статус игры
+     */
+    private int status = GameGui.STATUS_OFF;
+
+    /**
      * Объект игры
      */
-    public static GameGui instance = new GameGui();
+    public static GameGui instance;
+
+    /**
+     * Объект лигики игры
+     */
+    private GameLogic gameLogic;
 
     /**
      * Количество бомб
@@ -53,11 +70,151 @@ public class GameGui extends JFrame {
     Control control;
 
     /**
+     * Таймер
+     */
+    private java.util.Timer timer = new java.util.Timer(false);
+
+    /**
      * Конструктор
      */
     private GameGui() {
         super("Sapper");
         this.initGui();
+
+        this.timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                if (getStatus() == GameGui.STATUS_ON) {
+                    double gameDuration = gameLogic.getGameDuration()/1000;
+                    setTime(gameDuration);
+                }
+            }
+        }, 0, 10);
+    }
+
+    /**
+     * Получить объект игры
+     * @return
+     */
+    public static GameGui getInstance() {
+        if (GameGui.instance == null) {
+            GameGui.instance = new GameGui();
+        }
+        return GameGui.instance;
+    }
+
+    /**
+     * Получить статус игры
+     * @return
+     */
+    public int getStatus() {
+        return this.status;
+    }
+
+    /**
+     * Начать игру
+     * @param y номер строчки
+     * @param x номер колонки
+     */
+    public void start(int y, int x) {
+        try {
+            this.gameLogic = new GameLogic(GameGui.FIELD_ROWS, GameGui.FIELD_COLS, GameGui.COUNT_BOMBS, y, x);
+            this.gameLogic.start();
+            this.status = GameGui.STATUS_ON;
+        } catch (GameLogicException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Обновить игру (синхронизировать с объектом логики игры)
+     */
+    public void refresh() {
+        for (int i=0; i<GameGui.FIELD_ROWS; i++) {
+            for (int j=0; j<GameGui.FIELD_COLS; j++) {
+                GameLogic.Cell cell = this.gameLogic.getCell(i, j);
+                Tile tile = this.field.getTile(i, j);
+
+                if (cell.getStatus() == GameLogic.Cell.STATUS_INIT) {
+                    tile.setStatus(Tile.STATUS_INIT);
+                } else if (cell.getStatus() == GameLogic.Cell.STATUS_NUMBER) {
+                    tile.setNumber(cell.getNumber());
+                    tile.setStatus(Tile.STATUS_NUMBER);
+                } else if (cell.getStatus() == GameLogic.Cell.STATUS_EXPLODED_BOMB) {
+                    tile.setStatus(Tile.STATUS_EXPLODED_BOMB);
+                } else if (cell.getStatus() == GameLogic.Cell.STATUS_MARK_BOMB) {
+                    tile.setStatus(Tile.STATUS_MARK_BOMB);
+                } else if (cell.getStatus() == GameLogic.Cell.STATUS_MARK_DOT) {
+                    tile.setStatus(Tile.STATUS_MARK_DOT);
+                } else if (cell.getStatus() == GameLogic.Cell.STATUS_MARK_FLAG) {
+                    tile.setStatus(Tile.STATUS_MARK_FLAG);
+                } else if (cell.getStatus() == GameLogic.Cell.STATUS_NOTHING) {
+                    tile.setStatus(Tile.STATUS_NOTHING);
+                } else if (cell.getStatus() == GameLogic.Cell.STATUS_BLOCK) {
+                    tile.setStatus(Tile.STATUS_BLOCK);
+                }
+            }
+        }
+        this.field.refresh();
+        this.setFoundBombs(this.gameLogic.getCountFlags());
+        if (this.gameLogic.getStatus() == GameLogic.STATUS_WIN) {
+            this.setStatusWin();
+            this.setFoundBombs(GameGui.COUNT_BOMBS);
+        } else if (this.gameLogic.getStatus() == GameLogic.STATUS_LOSE) {
+            this.setStatusLose();
+        }
+        double gameDuration = this.gameLogic.getGameDuration()/1000;
+        this.setTime(gameDuration);
+        if (this.getStatus() == GameGui.STATUS_ON && this.gameLogic.getStatus()==GameLogic.STATUS_WIN) {
+            this.pushToLeaderBoard(this.gameLogic.getGameDuration()/1000, new Date());
+            this.status = GameGui.STATUS_OFF;
+        }
+    }
+
+    /**
+     * Клик левой кнопкой мыши
+     * @param index порядковый номер клеточки
+     */
+    public void leftClick(int index) {
+        int clickRow = (int)Math.floor(index/GameGui.FIELD_COLS);
+        int clickCol = index - clickRow*GameGui.FIELD_COLS;
+
+        if (this.gameLogic==null) {
+            this.start(clickRow, clickCol);
+        }
+
+        if (this.gameLogic.getStatus() != GameLogic.STATUS_LOSE &&
+                this.gameLogic.getStatus() != GameLogic.STATUS_WIN &&
+                this.gameLogic.getCell(clickRow, clickCol).leftClick()) {
+            this.refresh();
+        }
+    }
+
+    /**
+     * Клик правой кнопкой мыши
+     * @param index порядковый номер клеточки
+     */
+    public void rightClick(int index) {
+        if (this.gameLogic==null) {
+            return;
+        }
+
+        int clickRow = (int)Math.floor(index/GameGui.FIELD_COLS);
+        int clickCol = index - clickRow*GameGui.FIELD_COLS;
+
+        if (this.gameLogic.getStatus() != GameLogic.STATUS_LOSE &&
+                this.gameLogic.getStatus() != GameLogic.STATUS_WIN &&
+                this.gameLogic.getCell(clickRow, clickCol).rightClick()) {
+            this.refresh();
+        }
+    }
+
+    /**
+     * Получить объект логики игры
+     * @return
+     */
+    public GameLogic getGameLogic() {
+        return this.gameLogic;
     }
 
     /**
@@ -72,21 +229,21 @@ public class GameGui extends JFrame {
     /**
      * Установить статус игры "Проиграно"
      */
-    private void setStatusLose() {
-        this.control.setStatusMessage("You lose!", Color.red);
+    public void setStatusLose() {
+        this.control.setStatusMessage("You lose!", new Color(187, 0,0));
     }
 
     /**
      * Установить статус игры "Выиграно"
      */
-    private void setStatusWin() {
-        this.control.setStatusMessage("You win!", Color.green);
+    public void setStatusWin() {
+        this.control.setStatusMessage("You win!", new Color(0, 153,0));
     }
 
     /**
      * Скрыть статус игры
      */
-    private void setStatusHidden() {
+    public void setStatusHidden() {
         this.control.setStatusMessage("", Color.white);
     }
 
@@ -153,7 +310,12 @@ public class GameGui extends JFrame {
             minutes = String.valueOf((int)Math.floor(seconds / 60));
             seconds = seconds % 60;
         }
-        NumberFormat formatter = new DecimalFormat("#0.00");
+        NumberFormat formatter;
+        if (minutes != null) {
+            formatter = new DecimalFormat("#00.00");
+        } else {
+            formatter = new DecimalFormat("#0.00");
+        }
         return (minutes != null ? minutes+" : " : "") + formatter.format(seconds);
     }
 }

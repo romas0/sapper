@@ -9,6 +9,8 @@ package ru.romas0.sapper;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.util.Date;
 
 /**
@@ -123,5 +125,20 @@ public class Control extends JPanel {
         gbc.gridy = 5;
         gbc.weighty = 0.1;
         this.add(newGameButton, gbc);
+        newGameButton.addMouseListener(new MouseListener() {
+            public void mouseClicked(MouseEvent e) {
+                GameGui.getInstance().setStatusHidden();
+                GameGui.getInstance().start(4,5); // TODO
+                GameGui.getInstance().refresh();
+            }
+
+            public void mousePressed(MouseEvent e) {}
+
+            public void mouseReleased(MouseEvent e) {}
+
+            public void mouseEntered(MouseEvent e) {}
+
+            public void mouseExited(MouseEvent e) {}
+        });
     }
 }

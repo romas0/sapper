@@ -6,12 +6,18 @@
 **/
 package ru.romas0;
 
+import ru.romas0.sapper.GameGui;
+
+/**
+ * Класс - точка входа программы
+ */
 public class Main {
+
+    /**
+     * Метод - точка входа
+     * @param args аргументы
+     */
     public static void main(String[] args) {
-        try {
-            Class.forName("ru.romas0.sapper.GameGui");
-        } catch (ClassNotFoundException e) {
-            System.exit(1);
-        }
+         GameGui.getInstance();
     }
 }
