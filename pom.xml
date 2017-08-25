@@ -6,7 +6,7 @@
 
     <groupId>ru.romas0</groupId>
     <artifactId>Sapper</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 
     <dependencies>
         <dependency>
